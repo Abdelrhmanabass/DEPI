@@ -1,0 +1,144 @@
+1- Configure Vlans 10 , 20, 30 , 40 on all Switches and Multi layer Switches
+	SW1(config)# VLan 10
+	SW1(config)# VLan 20
+	SW1(config)# VLan 30
+	SW1(config)# VLan 40
+
+2- Configure Access and Trunk Ports 
+	SW1(config)# int ra f0/1-2
+	SW1(config)# switchport mode access
+	SW1(config)# switchport access vlan 10
+	SW1(config)# int ra f0/3-4
+	SW1(config)# switchport mode trunk
+
+3- Configure Routing on the Multi Layer Switches
+	MLS1(config)# ip routing
+
+4- Disable Switching on interfaced on MLS that are connected to the router
+	MLS1(config)# int f0/4
+	MLS1(config)# no switchport
+
+5- Give IPs for interfaces of Routers and the MLSs as per to the Topology
+	MLS1(config)# int f0/4
+	MLS1(config)# ip address 10.50.50.2 255.255.255.252
+	MLS1(config)# no shutdown
+
+6- Configure static route on the MLSs
+	MLS1(config)# ip route 0.0.0.0 0.0.0.0 f0/4
+
+7- Configure Default GateWay of each VLAN on the MLSs
+	MLS1(config)# int vlan 10
+	MLS1(config)# ip address 10.10.10.1 255.255.255.0
+	MLS2(config)# int vlan 10
+	MLS2(config)# ip address 10.10.10.2 255.255.255.0
+
+8- Configure HSRP on MLSs
+	MLS1(config)# int vlan 10
+	MLS1(config)# standby version 2
+	MLS1(config)# standby 10 ip 10.10.10.254
+	MLS1(config)# standby priority 200
+
+	MLS2(config)# int vlan 10
+	MLS2(config)# standby version 2
+	MLS2(config)# standby 10 ip 10.10.10.254
+
+
+9- Configure OSPF between MLSs and Router
+	R(config)# int ra g0/0-1
+	R(config)# ip ospf 1 area 0
+	MLS1(config)# router ospf 1
+	MLS1(config-if)# network 10.10.10.0 0.0.0.255 area 0
+
+
+10- Configure DHCP on Router for each VLAN
+
+vlan 10
+	R(config)# ip dhcp excluded-address 10.10.10.1
+	R(config)# ip dhcp excluded-address 10.10.10.2
+	R(config)# ip dhcp excluded-address 10.10.10.254
+
+vlan 20
+	R(config)# ip dhcp excluded-address 10.20.20.1
+	R(config)# ip dhcp excluded-address 10.20.20.2
+	R(config)# ip dhcp excluded-address 10.20.20.254
+
+vlan 30
+	R(config)# ip dhcp excluded-address 10.30.30.1
+	R(config)# ip dhcp excluded-address 10.30.30.2
+	R(config)# ip dhcp excluded-address 10.30.30.254
+
+vlan 10
+	R(config)# ip dhcp pool vlan10
+	R(dhcp-config)# network 10.10.10.0 255.255.255.0
+	R(dhcp-config)# default-router 10.10.10.254
+	R(dhcp-config)# dns-server 10.40.40.3	
+	
+
+
+vlan 20
+	R(config)# ip dhcp pool vlan10
+	R(dhcp-config)# network 10.20.20.0 255.255.255.0
+	R(dhcp-config)# default-router 10.20.20.254
+	R(dhcp-config)# dns-server 10.40.40.3	
+
+
+
+vlan 30
+	R(config)# ip dhcp pool vlan10
+	R(dhcp-config)# network 10.30.30.0 255.255.255.0
+	R(dhcp-config)# default-router 10.30.30.254
+	R(dhcp-config)# dns-server 10.40.40.3	
+
+	MLS1(config)# int vlan 10
+	MLS1(config-if)# ip helper-address 10.50.50.1
+	MLS1(config)# int vlan 20
+	MLS1(config-if)# ip helper-address 10.50.50.1
+	MLS1(config)# int vlan 30
+	MLS1(config-if)# ip helper-address 10.50.50.1
+
+
+11-  Configure PAT on Router on AS100
+	R(config)# int ra g0/0-1
+	R(config-if-range)# ip nat inside
+	R(config)# access list 1 permit 10.10.10.0 0.0.0.255
+	R(config)# access list 1 permit 10.20.20.0 0.0.0.255
+	R(config)# access list 1 permit 10.30.30.0 0.0.0.255
+	R(config)# ip nat inside source list 1 interface g0/2 overload
+
+
+	for static nat for web server
+	R(config)# ip nat inside source static 10.40.40.3 40.40.40.3
+
+12- Make MLS1 is Root Primary
+	R(config)# spanning-tree vlan 10 root primary
+	R(config)# spanning-tree vlan 20 root primary
+	R(config)# spanning-tree vlan 30 root primary
+	R(config)# spanning-tree vlan 40 root primary
+
+
+13- Configure BGP on the Core Routers
+	R(config)# router bgp 100
+	R(config)# neightbor 50.50.50.2 remote-as 400
+	R(config)# network 30.30.30.0 mask 255.255.255.252
+	R(config)# network 50.50.50.0 mask 255.255.255.252
+
+
+14- Configure Access_list so Vlan 10 in AS100 cant reach web server
+	R(config)# access_list 101 deny ip 10.10.10.0 0.0.0.255 host 40.40.40.3
+	R(config)# int ra g0/0-1
+	R(config-ra-if)# ip access_list 101 in
+
+15- Configure DHCP Snooping on Basic Switches
+	SW1(config)# ip dhcp snooping 
+	SW1(config)# ip dhcp snooping vlan 10
+	SW1(config)# no ip dhcp snooping information option
+
+	SW1(config)# int ra f0/3-4
+	SW1(config)# ip dhcp snooping trust
+
+
+16- Configure Telnet on Remote Devices 
+	MSW1(config)# line vty 0 10
+	MSW1(config)# password *******
+	MSW1(config)#login
+
